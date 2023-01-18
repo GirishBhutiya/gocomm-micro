@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package db;
+
+import "google/protobuf/timestamp.proto";
+
+
+option go_package = "github.com/GirishBhutiya/gocomm-micro/db/proto";
+
+message User{
+    uint64 id = 1;
+    string first_name = 2;
+    string last_name = 3;
+    string email = 4;
+    string password = 5;
+    uint32 active = 6;
+    google.protobuf.Timestamp create_at = 7;
+    google.protobuf.Timestamp updated_at = 8;
+}
+
+message UserRequest{
+    User user = 1;
+}
+
+message UserResponse{
+    string result = 1;
+}
+
+service UserService{
+    rpc UserAuthenticate (UserRequest) returns (UserResponse);
+}
