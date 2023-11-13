@@ -126,7 +126,7 @@ func (u *User) GetOne(id int) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select users.id, users.email, users.first_name, users.last_name, users.hashad_password, users.active, users.roll_id, users.password_changed_at, users.updated_at, users.created_at,roll.roll from users
+	query := `select users.id, users.email, users.first_name, users.last_name, users.active, users.roll_id, roll.roll, users.password_changed_at, users.updated_at, users.created_at from users
 	INNER JOIN roll on users.roll_id = roll.id
 	where users.id = $1`
 
@@ -138,13 +138,12 @@ func (u *User) GetOne(id int) (*User, error) {
 		&user.Email,
 		&user.FirstName,
 		&user.LastName,
-		&user.Password,
+		&user.Active,
 		&user.RollId,
 		&user.Roll,
-		&user.Active,
 		&user.PasswordChangedAt,
-		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.CreatedAt,
 	)
 
 	if err != nil {
