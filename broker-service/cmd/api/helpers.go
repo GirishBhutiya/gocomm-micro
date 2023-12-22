@@ -74,13 +74,13 @@ func (app *Server) errorJSON(w http.ResponseWriter, err error, status ...int) er
 }
 func CreateUserResponse(user *auth.User) UserResponse {
 	return UserResponse{
-		ID:                int(user.ID),
-		Email:             user.Email,
-		FirstName:         user.FirstName,
-		LastName:          user.LastName,
-		RollId:            int(user.RollId),
-		Roll:              user.Roll,
-		Active:            int(user.Active),
+		ID:        int(user.ID),
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		RollId:    int(user.RollId),
+		Roll:      user.Roll,
+		//Active:            int(user.Active),
 		PasswordChangedAt: user.PasswordChangedAt.AsTime(),
 		CreatedAt:         user.CreatedAt.AsTime(),
 		UpdatedAt:         user.UpdatedAt.AsTime(),

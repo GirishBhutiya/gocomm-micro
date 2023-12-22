@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package mailer;
+
+option go_package = "/proto";
+
+message registerEmailRequest{
+    int64 ID = 1;      
+	string Email = 2;     
+}
+message registerEmailResponse{
+    bool isError = 1;
+    string message = 2;
+}
+
+service MailerService{
+    rpc SendRegisterEmailVerification(registerEmailRequest)returns(registerEmailResponse);
+}

@@ -11,8 +11,6 @@ services:
     deploy:
       mode: replicated
       replicas: 1
-    stdin_open: true # docker run -i
-    tty: true      
     environment:
       DSN: "host=postgres port=5432 user=gocommmicro password=password dbname=gocommmicro sslmode=disable timezone=UTC connect_timeout=5"
 
@@ -27,6 +25,17 @@ services:
       mode: replicated
       replicas: 1
   
+  mailer-service:
+    build:
+      context: ./../mailer-service
+      dockerfile: ./../mailer-service/mailer-service.dockerfile
+    restart: always
+    ports:
+      - "8082:80"
+    deploy:
+      mode: replicated
+      replicas: 1
+
   postgres:
     image: 'postgres:16.0'
     ports:

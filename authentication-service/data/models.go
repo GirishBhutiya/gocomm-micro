@@ -245,7 +245,7 @@ func (u *User) Insert(user User) (int, error) {
 		user.FirstName,
 		user.LastName,
 		hashedPassword,
-		user.Active,
+		0,
 		user.RollId,
 	).Scan(&newID)
 

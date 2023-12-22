@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -50,6 +52,14 @@ func (l *LoginServer) Login(ctx context.Context, req *proto.LoginRequest) (*prot
 		}
 		return res, errors.New("password incorrect")
 	}
+	//check is email verified or not.
+	if user.Active == 0 {
+		res := &proto.LoginResponse{
+			Authenticated: false,
+			User:          nil,
+		}
+		return res, errors.New("your email is not verified, please check your mailbox including spam folder")
+	}
 	// return response
 	usr := &proto.User{
 		ID:                int64(user.ID),
@@ -82,9 +92,9 @@ func (l *LoginServer) Register(ctx context.Context, req *proto.RegisterRequest) 
 		LastName:  input.GetLastName(),
 		Password:  input.GetPassword(),
 		RollId:    int(input.GetRollId()),
-		Active:    int(input.GetActive()),
+		//Active:    int(input.GetActive()),
 	}
-	log.Println("register input password:", input.GetPassword())
+	//log.Println("register input password:", input.GetPassword())
 	userId, err := u.Insert(u)
 	if err != nil {
 		log.Println(err)
@@ -95,6 +105,40 @@ func (l *LoginServer) Register(ctx context.Context, req *proto.RegisterRequest) 
 		}
 		return res, err
 	}
+	//send verify email
+	conn, err := grpc.Dial(fmt.Sprintf("mailer-service:%s", mailerGrpcPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Println(err)
+		res := &proto.RegisterResponse{
+			IsError: true,
+			Error:   err.Error(),
+			User:    nil,
+		}
+		return res, err
+	}
+
+	defer conn.Close()
+
+	c := proto.NewMailerServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err = c.SendRegisterEmailVerification(ctx, &proto.RegisterEmailRequest{
+		ID:    int64(userId),
+		Email: u.Email,
+	})
+
+	if err != nil {
+		log.Println(err)
+		res := &proto.RegisterResponse{
+			IsError: true,
+			Error:   err.Error(),
+			User:    nil,
+		}
+		return res, err
+	}
+
 	userN, err := u.GetOne(userId)
 	if err != nil {
 		log.Println(err)

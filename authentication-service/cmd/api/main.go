@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	webPort  = "80"
-	gRpcPort = "50001"
+	webPort        = "80"
+	gRpcPort       = "50001"
+	mailerGrpcPort = "50002"
 )
 
 var counts int64

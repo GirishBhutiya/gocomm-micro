@@ -48,7 +48,7 @@ func (app *Server) Brocker(w http.ResponseWriter, r *http.Request) {
 }
 func (app *Server) Login(w http.ResponseWriter, r *http.Request) {
 	var authPayload AuthPayload
-	log.Println("in broker login handler")
+
 	err := app.readJSON(w, r, &authPayload)
 	if err != nil {
 		log.Println(err)
@@ -79,7 +79,7 @@ func (app *Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println(err)
-		app.errorJSON(w, err)
+		app.errorJSON(w, err, http.StatusUnauthorized)
 		return
 	}
 	userRes := CreateUserResponse(res.User)
@@ -188,4 +188,8 @@ func (app *Server) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	app.writeJSON(w, http.StatusAccepted, res)
 
+}
+func (app *Server) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	theURL := r.RequestURI
+	log.Println(theURL)
 }

@@ -1,0 +1,22 @@
+{{define "body"}}
+<!doctype html>
+<html>
+
+    <head>
+        <meta name="view-port" content="width=device-width"/>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    </head>
+    <body>
+        <p>Hello:</p>
+        <p>You recently registered to our website.</p>
+        <p>Click on the link below to verify your email.</p>
+        <p><a href="{{.Link}}">{{.Link}}</a></p>
+        
+        <p>This link expires in 60 minutes.</p>
+
+        <p>--<br>
+            Bhutiya Co.
+        </p>
+    </body>
+</html>
+{{end}}

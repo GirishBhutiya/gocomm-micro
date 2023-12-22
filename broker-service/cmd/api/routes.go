@@ -28,6 +28,8 @@ func (app *Server) routes() http.Handler {
 	mux.Post("/login", app.Login)
 	mux.Post("/register", app.Register)
 
+	mux.Get("/verify-email", app.VerifyEmail)
+
 	mux.Route("/api/admin", func(mux chi.Router) {
 		mux.Use(app.AuthMiddleware)
 

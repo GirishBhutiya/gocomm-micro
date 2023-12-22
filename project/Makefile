@@ -2,6 +2,7 @@ DB_URL=postgresql://gocommmicro:password@localhost:5432/gocommmicro?sslmode=disa
 ADMIN_BACK_END_BINARY=adminBackEndApp
 BROKER_BINARY=brokerApp
 AUTHENTICATION_BINARY=authenticationApp
+MAILER_BINARY=mailerApp
 
 ## up: starts all containers in the background without forcing build
 up:
@@ -10,7 +11,7 @@ up:
 	@echo "Docker images started!"
 
 ## up_build: stops docker-compose (if running), builds all projects and starts docker compose
-up_build: build_broker build_auth
+up_build: build_broker build_auth build_mailer
 	@echo "Stopping docker images (if running...)"
 	docker-compose down
 	@echo "Building (when required) and starting docker images..."
@@ -35,6 +36,11 @@ build_auth:
 	cd ../authentication-service && env GOOS=linux CGO_ENABLED=0 go build -o ${AUTHENTICATION_BINARY} ./cmd/api
 	@echo "Done!"
 
+## build_mailer: builds the mailer binary as a linux executable
+build_mailer:
+	@echo "Building mailer binary..."
+	cd ../mailer-service && env GOOS=linux CGO_ENABLED=0 go build -o ${MAILER_BINARY} ./cmd/api
+	@echo "Done!"
 
 ## build_admin_back: builds the frone end binary
 build_admin:
