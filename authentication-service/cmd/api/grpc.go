@@ -1,14 +1,16 @@
 package main
 
 import (
-	"authentication/data"
-	"authentication/proto"
+	"authentication/data/models"
+	"authentication/data/proto"
+	"authentication/internal/urlsigner"
+	"authentication/internal/util"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net"
-	"time"
+	"net/url"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -17,15 +19,17 @@ import (
 
 type LoginServer struct {
 	proto.UnimplementedLoginServiceServer
-	Models data.Models
+	//Models data.Models
+	Config      util.ConfigVars
+	userService models.UserService
 }
 
 func (l *LoginServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
 
 	input := req.GetLoginReq()
-
-	var u data.User
-	user, err := u.GetByEmail(input.GetUsername())
+	//us := models.UserService{}
+	//var u data.User
+	user, err := l.userService.GetByEmail(input.GetUsername())
 	if err != nil {
 		log.Println(err)
 		res := &proto.LoginResponse{
@@ -35,7 +39,7 @@ func (l *LoginServer) Login(ctx context.Context, req *proto.LoginRequest) (*prot
 		return res, err
 	}
 
-	match, err := user.PasswordMatches(input.GetPassword())
+	match, err := l.userService.PasswordMatches(input.GetPassword(), user)
 	if err != nil {
 		log.Println(err)
 		res := &proto.LoginResponse{
@@ -86,7 +90,7 @@ func (l *LoginServer) Register(ctx context.Context, req *proto.RegisterRequest) 
 
 	input := req.GetUser()
 
-	u := data.User{
+	u := models.User{
 		Email:     input.GetEmail(),
 		FirstName: input.GetFirstName(),
 		LastName:  input.GetLastName(),
@@ -94,8 +98,9 @@ func (l *LoginServer) Register(ctx context.Context, req *proto.RegisterRequest) 
 		RollId:    int(input.GetRollId()),
 		//Active:    int(input.GetActive()),
 	}
+
 	//log.Println("register input password:", input.GetPassword())
-	userId, err := u.Insert(u)
+	userN, err := l.userService.Insert(u)
 	if err != nil {
 		log.Println(err)
 		res := &proto.RegisterResponse{
@@ -105,9 +110,20 @@ func (l *LoginServer) Register(ctx context.Context, req *proto.RegisterRequest) 
 		}
 		return res, err
 	}
+
+	//create verify email link
+	/* link := util.GetVeifyEmailLink(u.Email, l.Config.FrontEndDomain)
+
+	sign := urlsigner.Signer{
+		Secret: []byte(fmt.Sprintf("%s%s", l.Config.HashSecretKeyVerifyEmail, u.Email)),
+	}
+	signedLink := sign.GenerateTokenFromString(link) */
+	signedLink := util.GetFullVerifyEmailLink(u.Email, l.Config.FrontEndDomain, l.Config.HashSecretKeyVerifyEmail)
 	//send verify email
-	conn, err := grpc.Dial(fmt.Sprintf("mailer-service:%s", mailerGrpcPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	go l.callRegisterEmailVerification(u.Email, signedLink)
+
 	if err != nil {
+
 		log.Println(err)
 		res := &proto.RegisterResponse{
 			IsError: true,
@@ -117,18 +133,7 @@ func (l *LoginServer) Register(ctx context.Context, req *proto.RegisterRequest) 
 		return res, err
 	}
 
-	defer conn.Close()
-
-	c := proto.NewMailerServiceClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	_, err = c.SendRegisterEmailVerification(ctx, &proto.RegisterEmailRequest{
-		ID:    int64(userId),
-		Email: u.Email,
-	})
-
+	/* userN, err := l.userService.GetOne(userId)
 	if err != nil {
 		log.Println(err)
 		res := &proto.RegisterResponse{
@@ -137,18 +142,7 @@ func (l *LoginServer) Register(ctx context.Context, req *proto.RegisterRequest) 
 			User:    nil,
 		}
 		return res, err
-	}
-
-	userN, err := u.GetOne(userId)
-	if err != nil {
-		log.Println(err)
-		res := &proto.RegisterResponse{
-			IsError: true,
-			Error:   err.Error(),
-			User:    nil,
-		}
-		return res, err
-	}
+	} */
 	// return response
 	usr := &proto.User{
 		ID:        int64(userN.ID),
@@ -173,7 +167,7 @@ func (l *LoginServer) UpdateUser(ctx context.Context, req *proto.UpdateUserReque
 
 	input := req.GetUser()
 
-	u := data.User{
+	u := &models.User{
 		ID:        int(input.GetID()),
 		Email:     input.GetEmail(),
 		FirstName: input.GetFirstName(),
@@ -182,7 +176,7 @@ func (l *LoginServer) UpdateUser(ctx context.Context, req *proto.UpdateUserReque
 		Active:    int(input.GetActive()),
 	}
 
-	err := u.Update()
+	err := l.userService.Update(u)
 	if err != nil {
 		log.Println(err)
 		res := &proto.UpdateUserResponse{
@@ -202,7 +196,175 @@ func (l *LoginServer) UpdateUser(ctx context.Context, req *proto.UpdateUserReque
 	return res, nil
 
 }
+func (l *LoginServer) VerifyRegisteredEmail(ctx context.Context, req *proto.VerifyRegisteredEmailRequest) (*proto.VerifyRegisteredEmailResponse, error) {
 
+	link := req.GetLink()
+
+	//mUrl := fmt.Sprintf("%s%s", l.Config.FrontEndDomain, link)
+
+	parsedURL, err := url.Parse(link)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	params, err := url.ParseQuery(parsedURL.RawQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	email := params.Get("email")
+
+	sign := urlsigner.Signer{
+		Secret: []byte(fmt.Sprintf("%s%s", l.Config.HashSecretKeyVerifyEmail, email)),
+	}
+
+	valid := sign.VerifyToken(link)
+
+	res := &proto.VerifyRegisteredEmailResponse{
+		Verified: valid,
+	}
+	if !valid {
+		res.Message = "Email not verified."
+	}
+
+	u := &models.User{
+		Email: email,
+	}
+	err = l.userService.ValidateEmail(u)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	res.Message = "Email sucessfully verified."
+
+	return res, nil
+}
+func (l *LoginServer) ForgotPassword(ctx context.Context, req *proto.ForgotPasswordRequest) (*proto.ForgotPasswordResponse, error) {
+	email := req.GetEmail()
+
+	/*u := data.User{
+		Email: email,
+	}*/
+	_, err := l.userService.GetByEmail(email)
+	if err != nil {
+		log.Println(err)
+		res := &proto.ForgotPasswordResponse{
+			IsError: true,
+			Message: "No account found.",
+		}
+		return res, err
+	}
+
+	link := util.GetForgotPasswordLink(email, l.Config.FrontEndDomain)
+
+	sign := urlsigner.Signer{
+		Secret: []byte(fmt.Sprintf("%s%s", l.Config.HashSecretKeyForgotPassword, email)),
+	}
+	signedLink := sign.GenerateTokenFromString(link)
+
+	//send verify email
+	conn, err := grpc.Dial(fmt.Sprintf("mailer-service:%s", mailerGrpcPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+
+		log.Println(err)
+		res := &proto.ForgotPasswordResponse{
+			IsError: true,
+			Message: "Sending Error in mail",
+		}
+		return res, err
+	}
+
+	defer conn.Close()
+
+	c := proto.NewMailerServiceClient(conn)
+
+	_, err = c.SendForgotPasswordLinkEmail(ctx, &proto.ForgotPasswordRequestEmail{
+		Email: email,
+		Link:  signedLink,
+	})
+
+	if err != nil {
+
+		log.Println(err)
+		res := &proto.ForgotPasswordResponse{
+			IsError: true,
+			Message: "Sending Error in mail",
+		}
+		return res, err
+	}
+	res := &proto.ForgotPasswordResponse{
+		IsError: false,
+		Message: "Forgot Password Link sent via mail. Please check your mailbox including spam folder.",
+	}
+	return res, nil
+
+}
+func (l *LoginServer) ResetPassword(ctx context.Context, req *proto.ResetPasswordRequest) (*proto.ResetPasswordResponse, error) {
+	email := req.GetEmail()
+	theLink := req.GetLink()
+	password := req.GetPassword()
+
+	sign := urlsigner.Signer{
+		Secret: []byte(fmt.Sprintf("%s%s", l.Config.HashSecretKeyForgotPassword, email)),
+	}
+	mUrl := fmt.Sprintf("%s%s", l.Config.FrontEndDomain, theLink)
+	valid := sign.VerifyToken(mUrl)
+
+	res := &proto.ResetPasswordResponse{}
+	if !valid {
+		res.Message = "Password Reset Link not veririfed"
+		res.IsError = true
+		return res, errors.New("password reset link not veririfed")
+	}
+	//make sure not expired
+	expired := sign.Expired(mUrl, 60)
+	if expired {
+		res.Message = "Link Expired"
+		res.IsError = true
+		return res, errors.New("password reset link expired")
+	}
+	u := &models.User{
+		Email:    email,
+		Password: password,
+	}
+	//log.Println("Password in grpc:", password)
+	err := l.userService.ResetPassword(password, u)
+	if err != nil {
+		log.Println(err)
+		res := &proto.ResetPasswordResponse{
+			IsError: true,
+			Message: err.Error(),
+		}
+		return res, err
+	}
+
+	res = &proto.ResetPasswordResponse{
+		IsError: false,
+		Message: "Password changed",
+	}
+	return res, nil
+
+}
+func (l *LoginServer) callRegisterEmailVerification(userEmail, link string) {
+
+	conn, err := grpc.Dial(fmt.Sprintf("mailer-service:%s", mailerGrpcPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Println(err)
+	}
+
+	defer conn.Close()
+	c := proto.NewMailerServiceClient(conn)
+
+	_, err = c.SendRegisterEmailVerification(context.Background(), &proto.RegisterEmailRequest{
+		Email: userEmail,
+		Link:  link,
+	})
+	if err != nil {
+		log.Println(err)
+	}
+}
 func (app *Config) gRPCListen() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", gRpcPort))
 	if err != nil {
@@ -211,7 +373,11 @@ func (app *Config) gRPCListen() {
 
 	s := grpc.NewServer()
 
-	proto.RegisterLoginServiceServer(s, &LoginServer{Models: app.Models})
+	proto.RegisterLoginServiceServer(s, &LoginServer{
+		//Models: app.Models,
+		userService: app.userService,
+		Config:      app.EnvVars,
+	})
 	log.Printf("gRPC server started on port %s", gRpcPort)
 	log.Println(fmt.Printf("add1: %s and add2: %s", lis.Addr(), lis.Addr().String()))
 

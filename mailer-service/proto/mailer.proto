@@ -4,15 +4,24 @@ package mailer;
 
 option go_package = "/proto";
 
-message registerEmailRequest{
-    int64 ID = 1;      
-	string Email = 2;     
+message registerEmailRequest{    
+	string link = 1;     
+    string email=2;
 }
 message registerEmailResponse{
     bool isError = 1;
     string message = 2;
 }
-
+message forgotPasswordRequestEmail{    
+	string link = 1;     
+    string email = 2;
+}
+message forgotPasswordResponseEmail{
+    bool isError = 1;
+    string message = 2;
+}
 service MailerService{
     rpc SendRegisterEmailVerification(registerEmailRequest)returns(registerEmailResponse);
+    rpc SendForgotPasswordLinkEmail(forgotPasswordRequestEmail)returns(forgotPasswordResponseEmail);
+
 }

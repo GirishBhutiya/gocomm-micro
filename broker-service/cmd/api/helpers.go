@@ -1,7 +1,7 @@
 package main
 
 import (
-	"broker-service/proto/auth"
+	auth "broker-service/proto"
 	"encoding/json"
 	"errors"
 	"io"

@@ -29,6 +29,8 @@ func (app *Server) routes() http.Handler {
 	mux.Post("/register", app.Register)
 
 	mux.Get("/verify-email", app.VerifyEmail)
+	mux.Get("/forgot-password", app.ForgotPassword)
+	mux.Post("/reset-password", app.ResetPassword)
 
 	mux.Route("/api/admin", func(mux chi.Router) {
 		mux.Use(app.AuthMiddleware)

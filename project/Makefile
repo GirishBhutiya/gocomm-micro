@@ -1,4 +1,5 @@
 DB_URL=postgresql://gocommmicro:password@localhost:5432/gocommmicro?sslmode=disable
+TEST_DB_URL=postgresql://gocommmicro:password@localhost:5432/testdb?sslmode=disable
 ADMIN_BACK_END_BINARY=adminBackEndApp
 BROKER_BINARY=brokerApp
 AUTHENTICATION_BINARY=authenticationApp
@@ -23,6 +24,12 @@ down:
 	@echo "Stopping docker compose..."
 	docker-compose down
 	@echo "Done!"
+
+downwithvolumn:
+	@echo "Stopping docker compose with volumn remove..."
+	docker-compose down --volumes
+	@echo "Done!"
+
 
 ## build_broker: builds the broker binary as a linux executable
 build_broker:
@@ -64,3 +71,9 @@ migrateup:
 
 migratedown:
 	migrate -path db/migration/ -database "$(DB_URL)" -verbose down
+
+migrateuptest:
+	migrate -path db/migration/ -database "$(TEST_DB_URL)" -verbose up
+
+migratedowntest:
+	migrate -path db/migration/ -database "$(TEST_DB_URL)" -verbose down

@@ -29,6 +29,7 @@ func main() {
 	app := Config{
 		EnvVars: config,
 	}
+
 	log.Println("Authentication service Started")
 	go app.gRPCListen()
 	//go app.gRPCListen()

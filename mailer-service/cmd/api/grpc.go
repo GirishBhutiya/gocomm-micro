@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"mailer-service/internal/urlsigner"
 	"mailer-service/proto"
 	"net"
 
@@ -18,24 +17,36 @@ type MailerServer struct {
 }
 
 func (l *MailerServer) SendRegisterEmailVerification(ctx context.Context, req *proto.RegisterEmailRequest) (*proto.RegisterEmailResponse, error) {
+	link := req.GetLink()
 	email := req.GetEmail()
-	log.Println(email)
-
-	link := fmt.Sprintf("%s/verify-email?email=%s", l.Config.EnvVars.FrontEndDomain, email)
-	sign := urlsigner.Signer{
-		Secret: []byte(l.Config.EnvVars.HashSecretKey),
-	}
-	signedLink := sign.GenerateTokenFromString(link)
 
 	var data struct {
-		Link template.URL
+		Link template.HTML
 	}
-	data.Link = template.URL(signedLink)
-	log.Println(signedLink)
+	data.Link = template.HTML(link)
+
 	//send mail with verify email link
 	go l.Config.SendMail(l.Config.EnvVars.FromEmail, email, l.Config.EnvVars.VerifyEmailSubject, l.Config.EnvVars.VerifyEmailTemplate, data)
 
 	res := &proto.RegisterEmailResponse{
+		IsError: false,
+		Message: "",
+	}
+	return res, nil
+}
+func (l *MailerServer) SendForgotPasswordLinkEmail(ctx context.Context, req *proto.ForgotPasswordRequestEmail) (*proto.ForgotPasswordResponseEmail, error) {
+	link := req.GetLink()
+	email := req.GetEmail()
+
+	var data struct {
+		Link template.HTML
+	}
+	data.Link = template.HTML(link)
+
+	//send mail with verify email link
+	go l.Config.SendMail(l.Config.EnvVars.FromEmail, email, l.Config.EnvVars.ForgotPasswordEmailSubject, l.Config.EnvVars.ForgotPasswordEmailTemplate, data)
+
+	res := &proto.ForgotPasswordResponseEmail{
 		IsError: false,
 		Message: "",
 	}

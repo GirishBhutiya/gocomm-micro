@@ -2,8 +2,10 @@ package main
 
 import (
 	"broker-service/data"
-	"broker-service/proto/auth"
+	auth "broker-service/proto"
+	"broker-service/util"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +18,10 @@ import (
 type AuthPayload struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+type ResetPasswordPayload struct {
+	Email    string `json:"email"`
+	Password string `json:"new_password"`
 }
 type UserResponse struct {
 	ID                int       `json:"id"`
@@ -55,7 +61,11 @@ func (app *Server) Login(w http.ResponseWriter, r *http.Request) {
 		app.errorJSON(w, err)
 		return
 	}
-
+	if !util.CheckPasswordValidity(authPayload.Password) {
+		log.Println("password error")
+		app.errorJSON(w, errors.New("password not valid. please set password more than 8 character without spaces"))
+		return
+	}
 	conn, err := grpc.Dial(fmt.Sprintf("authentication-service:%s", authGrpcPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		log.Println(err)
@@ -64,7 +74,6 @@ func (app *Server) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer conn.Close()
-
 	c := auth.NewLoginServiceClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -106,6 +115,11 @@ func (app *Server) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		app.errorJSON(w, err)
+		return
+	}
+	if util.CheckPasswordValidity(user.Password) {
+		log.Println("password error")
+		app.errorJSON(w, errors.New("password not valid. please set password more than 8 character without spaces"))
 		return
 	}
 	//log.Println("Brocker 1 pass :", user.Password)
@@ -192,4 +206,114 @@ func (app *Server) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (app *Server) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	theURL := r.RequestURI
 	log.Println(theURL)
+
+	conn, err := grpc.Dial(fmt.Sprintf("authentication-service:%s", authGrpcPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	defer conn.Close()
+
+	c := auth.NewLoginServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+
+	defer cancel()
+
+	res, err := c.VerifyRegisteredEmail(ctx, &auth.VerifyRegisteredEmailRequest{
+		Link: theURL,
+	})
+	log.Println(res)
+	if err != nil {
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	app.writeJSON(w, http.StatusAccepted, res)
+
+}
+func (app *Server) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	//log.Println("Email is:", email)
+
+	conn, err := grpc.Dial(fmt.Sprintf("authentication-service:%s", authGrpcPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Println("dial authentication service")
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	defer conn.Close()
+
+	c := auth.NewLoginServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+
+	defer cancel()
+
+	res, err := c.ForgotPassword(ctx, &auth.ForgotPasswordRequest{
+		Email: email,
+	})
+	log.Println(res)
+	if err != nil {
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+	app.writeJSON(w, http.StatusAccepted, res)
+
+}
+func (app *Server) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	//log.Println("Email is:", email)
+	theURL := r.RequestURI
+	//log.Println(theURL)
+
+	var resetPasswordPayload ResetPasswordPayload
+
+	err := app.readJSON(w, r, &resetPasswordPayload)
+	if err != nil {
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+	if util.CheckPasswordValidity(resetPasswordPayload.Password) {
+		log.Println("password error")
+		app.errorJSON(w, errors.New("password not valid. please set password more than 8 character without spaces"))
+		return
+	}
+
+	conn, err := grpc.Dial(fmt.Sprintf("authentication-service:%s", authGrpcPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	defer conn.Close()
+
+	c := auth.NewLoginServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+
+	defer cancel()
+
+	res, err := c.ResetPassword(ctx, &auth.ResetPasswordRequest{
+		Email:    email,
+		Password: resetPasswordPayload.Password,
+		Link:     theURL,
+	})
+	log.Println(res)
+	if err != nil {
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+	app.writeJSON(w, http.StatusAccepted, res)
+
 }

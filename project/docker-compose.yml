@@ -13,7 +13,7 @@ services:
       replicas: 1
     environment:
       DSN: "host=postgres port=5432 user=gocommmicro password=password dbname=gocommmicro sslmode=disable timezone=UTC connect_timeout=5"
-
+      TESTDBDSN: "host=postgres port=5432 user=gocommmicro password=password dbname=testdb sslmode=disable timezone=UTC connect_timeout=5"
   broker-service:
     build:
       context: ./../broker-service
@@ -44,10 +44,11 @@ services:
       mode: replicated
       replicas: 1
     environment:
+      POSTGRES_MULTIPLE_DATABASES: gocommmicro,testdb
       POSTGRES_USER: gocommmicro
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: gocommmicro
     volumes:
+      - ../project/docker-postgresql-multiple-databases:/docker-entrypoint-initdb.d
       - pgdata:/var/lib/postgresql/data
       #- ./db-data/postgres/:/var/lib/postgresql/data/
 volumes:

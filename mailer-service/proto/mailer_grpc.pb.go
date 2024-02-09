@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MailerServiceClient interface {
 	SendRegisterEmailVerification(ctx context.Context, in *RegisterEmailRequest, opts ...grpc.CallOption) (*RegisterEmailResponse, error)
+	SendForgotPasswordLinkEmail(ctx context.Context, in *ForgotPasswordRequestEmail, opts ...grpc.CallOption) (*ForgotPasswordResponseEmail, error)
 }
 
 type mailerServiceClient struct {
@@ -42,11 +43,21 @@ func (c *mailerServiceClient) SendRegisterEmailVerification(ctx context.Context,
 	return out, nil
 }
 
+func (c *mailerServiceClient) SendForgotPasswordLinkEmail(ctx context.Context, in *ForgotPasswordRequestEmail, opts ...grpc.CallOption) (*ForgotPasswordResponseEmail, error) {
+	out := new(ForgotPasswordResponseEmail)
+	err := c.cc.Invoke(ctx, "/mailer.MailerService/SendForgotPasswordLinkEmail", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MailerServiceServer is the server API for MailerService service.
 // All implementations must embed UnimplementedMailerServiceServer
 // for forward compatibility
 type MailerServiceServer interface {
 	SendRegisterEmailVerification(context.Context, *RegisterEmailRequest) (*RegisterEmailResponse, error)
+	SendForgotPasswordLinkEmail(context.Context, *ForgotPasswordRequestEmail) (*ForgotPasswordResponseEmail, error)
 	mustEmbedUnimplementedMailerServiceServer()
 }
 
@@ -56,6 +67,9 @@ type UnimplementedMailerServiceServer struct {
 
 func (UnimplementedMailerServiceServer) SendRegisterEmailVerification(context.Context, *RegisterEmailRequest) (*RegisterEmailResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendRegisterEmailVerification not implemented")
+}
+func (UnimplementedMailerServiceServer) SendForgotPasswordLinkEmail(context.Context, *ForgotPasswordRequestEmail) (*ForgotPasswordResponseEmail, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendForgotPasswordLinkEmail not implemented")
 }
 func (UnimplementedMailerServiceServer) mustEmbedUnimplementedMailerServiceServer() {}
 
@@ -88,6 +102,24 @@ func _MailerService_SendRegisterEmailVerification_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MailerService_SendForgotPasswordLinkEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForgotPasswordRequestEmail)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MailerServiceServer).SendForgotPasswordLinkEmail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/mailer.MailerService/SendForgotPasswordLinkEmail",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MailerServiceServer).SendForgotPasswordLinkEmail(ctx, req.(*ForgotPasswordRequestEmail))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MailerService_ServiceDesc is the grpc.ServiceDesc for MailerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -98,6 +130,10 @@ var MailerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendRegisterEmailVerification",
 			Handler:    _MailerService_SendRegisterEmailVerification_Handler,
+		},
+		{
+			MethodName: "SendForgotPasswordLinkEmail",
+			Handler:    _MailerService_SendForgotPasswordLinkEmail_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

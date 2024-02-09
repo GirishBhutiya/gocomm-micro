@@ -24,12 +24,12 @@ func (app *Config) SendMail(from, to, subject, tmpl string, data interface{}) {
 		log.Println(err)
 		return
 	}
-	var tpl bytes.Buffer
-	if err = t.ExecuteTemplate(&tpl, "body", data); err != nil {
+	var tplHTML bytes.Buffer
+	if err = t.ExecuteTemplate(&tplHTML, "body", data); err != nil {
 		log.Println(err)
 		return
 	}
-	formattedMessage := tpl.String()
+	formattedMessage := tplHTML.String()
 
 	templateToRender = fmt.Sprintf("templates/%s.plain.tmpl", tmpl)
 
@@ -38,13 +38,13 @@ func (app *Config) SendMail(from, to, subject, tmpl string, data interface{}) {
 		log.Println(err)
 		return
 	}
-
-	if err = t.ExecuteTemplate(&tpl, "body", data); err != nil {
+	var tplPlain bytes.Buffer
+	if err = t.ExecuteTemplate(&tplPlain, "body", data); err != nil {
 		log.Println(err)
 		return
 	}
 
-	plainMessage := tpl.String()
+	plainMessage := tplPlain.String()
 	log.Println(plainMessage)
 	//send mail
 	server := mail.NewSMTPClient()

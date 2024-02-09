@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package authentication;
+
+option go_package = "/proto";
+
+message User{
+    int64 ID = 1;      
+	string Email = 2;     
+	string FirstName = 3;
+	string LastName = 4;
+    string Password = 5;
+    int32 Active = 6;
+    int64 Roll_id = 7;
+	string Roll = 8;
+	google.protobuf.Timestamp UpdatedAt = 9;
+    google.protobuf.Timestamp CreatedAt = 10;
+    google.protobuf.Timestamp PasswordChangedAt = 11;
+}
+message LoginData{
+    string username = 1;
+    string password = 2;
+}
+message loginRequest{
+    LoginData loginReq = 1;
+}
+
+message loginResponse{
+    User user = 1;
+    bool Authenticated = 2;
+}
+message registerRequest{
+    User user = 1;
+}
+message registerResponse{
+    User user = 1;
+    bool isError = 2;
+    string error = 3;
+}
+message updateUserRequest{
+    User user = 1;
+}
+message updateUserResponse{
+    User user = 1;
+    bool isError = 2;
+    string error = 3;
+}
+message registerEmailRequest{
+    int64 ID = 1;      
+	string Email = 2;     
+}
+message registerEmailResponse{
+    bool isError = 1;
+    string message = 2;
+}
+message verifyRegisteredEmailRequest{
+    string link =1;
+}
+message verifyRegisteredEmailResponse{
+    bool verified=1;
+    string message=2;
+}
+message forgotPasswordRequest{
+    string email=1;
+}
+message forgotPasswordResponse{
+    bool isError = 1;
+    string message = 2;
+}
+message resetPasswordRequest{
+    string link=1;
+    string email=2;
+    string password=3;
+}
+message resetPasswordResponse{
+    bool isError = 1;
+    string message = 2;
+}
+service LoginService{
+    rpc Login(loginRequest)returns (loginResponse);
+    rpc Register(registerRequest)returns (registerResponse);
+    rpc UpdateUser(updateUserRequest)returns (updateUserResponse);
+    rpc SendRegisterEmailVerification(registerEmailRequest)returns(registerEmailResponse);
+    rpc VerifyRegisteredEmail(verifyRegisteredEmailRequest)returns(verifyRegisteredEmailResponse);
+    rpc ForgotPassword(forgotPasswordRequest)returns(forgotPasswordResponse);
+    rpc ResetPassword(resetPasswordRequest)returns(resetPasswordResponse);
+}
